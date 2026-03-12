@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>NEXUS PRO - TOTAL EDITION</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --ios-bg: #F2F2F7;
+            --ios-card: #FFFFFF;
+            --ios-blue: #007AFF;
+            --ios-text: #000000;
+            --ios-secondary: #8E8E93;
+            --ios-border: #C6C6C8;
+            --danger: #FF3B30;
+            --success: #34C759;
+            --wa: #25D366;
+            --purple: #5856D6;
+        }
+
+        /* Reset & Base iPhone */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--ios-bg);
+            color: var(--ios-text);
+            line-height: 1.4;
+            padding-bottom: 100px;
+            overflow-x: hidden;
+        }
+
+        /* iPhone Header (Glassmorphism) */
+        .header-ios {
+            position: sticky; top: 0;
+            background: rgba(242, 242, 247, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 55px 20px 15px;
+            z-index: 1000;
+            border-bottom: 0.5px solid var(--ios-border);
+            display: flex; justify-content: space-between; align-items: flex-end;
+        }
+        .header-ios h1 { font-size: 32px; font-weight: 800; letter-spacing: -1px; }
+
+        /* Conteneurs de page */
+        main { padding: 15px; max-width: 600px; margin: 0 auto; }
+        .page { display: none; }
+        .page.active { display: block; animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* Cartes & Listes */
+        .card {
+            background: var(--ios-card);
+            border-radius: 14px; padding: 16px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .ios-item {
+            background: var(--ios-card);
+            padding: 12px 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 0.5px solid #E5E5EA;
+        }
+        .ios-item:first-child { border-top-left-radius: 14px; border-top-right-radius: 14px; }
+        .ios-item:last-child { border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; border-bottom: none; }
+
+        /* Formulaires iOS */
+        .label-cap { font-size: 11px; font-weight: 600; color: var(--ios-secondary); text-transform: uppercase; margin-bottom: 6px; display: block; }
+        .ios-input {
+            width: 100%; background: #E9E9EB; border: none;
+            padding: 14px; border-radius: 10px; font-size: 17px;
+            margin-bottom: 12px; outline: none; transition: background 0.2s;
+        }
+        .ios-input:focus { background: #D1D1D6; }
+
+        /* Boutons */
+        .btn-main { background: var(--ios-blue); color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 600; width: 100%; font-size: 16px; }
+        .btn-sub { padding: 8px 14px; border-radius: 8px; border: none; font-weight: 600; font-size: 12px; cursor: pointer; }
+        .btn-wa { background: var(--wa); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+
+        /* Barre de navigation basse */
+        nav {
+            position: fixed; bottom: 0; width: 100%; height: 90px;
+            background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(25px);
+            display: flex; justify-content: space-around; padding-top: 12px;
+            border-top: 0.5px solid var(--ios-border); z-index: 1100;
+        }
+        .nav-link { text-align: center; color: var(--ios-secondary); text-decoration: none; font-size: 10px; width: 20%; font-weight: 500; }
+        .nav-link.active { color: var(--ios-blue); }
+        .nav-link svg { width: 26px; height: 26px; display: block; margin: 0 auto 5px; }
+
+        /* Login & QR Modals */
+        #loginOverlay { position: fixed; inset: 0; background: var(--ios-bg); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; }
+        #qr-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:5000; align-items:center; justify-content:center; padding:20px; }
+        
+        /* Stats & Badges */
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+        .badge-admin { background: #FF9500; color: white; }
+        .badge-user { background: var(--ios-blue); color: white; }
+
+        /* Styles Specifiques */
+        .admin-section { display: none; }
+        .chart-container { position: relative; height: 200px; width: 100%; }
+        #invoice-render { position: fixed; left: -9999px; width: 800px; background: white; padding: 40px; }
+    </style>
+</head>
+<body>
+
+    <div id="loginOverlay">
+        <div style="text-align: center; margin-bottom: 40px;">
+            <div style="font-size: 60px; margin-bottom: 10px;">🛡️</div>
+            <h1 style="font-size: 34px; font-weight: 800; letter-spacing: -1px;">NEXUS PRO</h1>
+            <p style="color: var(--ios-secondary);">Authentification requise</p>
+        </div>
+        <div style="width: 100%; max-width: 300px;">
+            <input type="password" id="passInput" class="ios-input" placeholder="Code d'accès" style="text-align: center; letter-spacing: 8px; font-size: 24px;">
+            <button class="btn-main" onclick="handleLogin()">S'identifier</button>
+            <p id="errorMsg" style="color: var(--danger); text-align: center; margin-top: 15px; font-size: 13px; font-weight: 600; display: none;">Accès refusé. Code invalide.</p>
+        </div>
+    </div>
+
+    <div id="qr-modal" onclick="closeQR()">
+        <div style="background:white; padding:30px; border-radius:28px; text-align:center; width:100%; max-width:320px;" onclick="event.stopPropagation()">
+            <h2 id="qr-title" style="margin-bottom: 5px; font-size: 20px;"></h2>
+            <p id="qr-subtitle" style="color:gray; font-size: 14px; margin-bottom: 20px;"></p>
+            <div id="qr-container" style="background: #f8f8f8; padding: 15px; border-radius: 18px; margin-bottom: 20px;">
+                <img id="qr-img" style="width: 100%; display: block;">
+            </div>
+            <button class="btn-main" onclick="closeQR()">Terminer</button>
+        </div>
+    </div>
+
+    <main id="mainApp" style="display:none;">
+        <div class="header-ios">
+            <div>
+                <h1 id="headerTitle">Accueil</h1>
+                <p id="subHeaderDate" style="font-size: 13px; color: var(--ios-secondary); font-weight: 600;"></p>
+            </div>
+            <div id="userBadgeArea"></div>
+        </div>
+
+        <div id="dashboard" class="page active">
+            <div class="card" style="background: linear-gradient(135deg, var(--ios-blue), var(--purple)); color: white;">
+                <span class="label-cap" style="color: rgba(255,255,255,0.7)">Chiffre d'Affaires Global</span>
+                <h2 id="totalSalesDisp" style="font-size: 36px; font-weight: 800; margin: 5px 0;">0.00 €</h2>
+                <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 12px;">
+                    <span id="salesCount">0 ventes effectuées</span>
+                    <span id="lastUpdate">MàJ: --:--</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <span class="label-cap">Performance Hebdomadaire</span>
+                <div class="chart-container">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+
+            <div class="admin-section">
+                <div class="card">
+                    <span class="label-cap">Gestion du Stock</span>
+                    <input type="text" id="pName" class="ios-input" placeholder="Désignation article">
+                    <div style="display:flex; gap:10px;">
+                        <input type="number" id="pPrice" class="ios-input" placeholder="Prix (€)">
+                        <input type="number" id="pQty" class="ios-input" placeholder="Qté" value="1">
+                    </div>
+                    <button class="btn-main" onclick="addToInventory()">Ajouter au catalogue</button>
+                </div>
+            </div>
+
+            <h3 style="margin: 20px 5px 10px; font-weight: 700;">Catalogue & Ventes</h3>
+            <div id="stockList"></div>
+        </div>
+
+        <div id="vault" class="page">
+            <div class="card">
+                <span class="label-cap">Porte-documents sécurisé</span>
+                <input type="file" id="fileInput" style="display:none" onchange="uploadToVault(this)">
+                <button class="btn-main" onclick="document.getElementById('fileInput').click()" style="background: var(--ios-text);">📤 Importer un fichier</button>
+                <input type="text" id="vaultSearch" class="ios-input" placeholder="Filtrer les documents..." onkeyup="filterVault()" style="margin-top:15px">
+            </div>
+            <div id="vaultGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;"></div>
+        </div>
+
+        <div id="planning" class="page">
+            <div class="card">
+                <span class="label-cap">Nouvelle réservation</span>
+                <input type="date" id="planDate" class="ios-input">
+                <div style="display:flex; gap:10px;">
+                    <input type="time" id="planStart" class="ios-input" value="09:00">
+                    <input type="time" id="planEnd" class="ios-input" value="18:00">
+                </div>
+                <button class="btn-main" onclick="savePlanning()">Valider ma présence</button>
+            </div>
+            
+            <h3 style="margin: 20px 5px 10px; font-weight: 700;">Planning de l'équipe</h3>
+            <div id="planningList"></div>
+        </div>
+
+        <div id="tracking" class="page">
+            <div class="card">
+                <span class="label-cap">Recherche historique</span>
+                <input type="text" id="histSearch" class="ios-input" placeholder="Chercher une transaction..." onkeyup="filterHistory()">
+            </div>
+            <div id="historyList"></div>
+        </div>
+
+        <div id="settings" class="page">
+            <div class="card">
+                <span class="label-cap">Profil Actuel</span>
+                <div style="display:flex; align-items:center; gap:15px;">
+                    <div id="userAvatar" style="width:50px; height:50px; border-radius:25px; background:var(--ios-blue); color:white; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:20px;">U</div>
+                    <div>
+                        <b id="userNameLarge">Utilisateur</b><br>
+                        <span id="userRoleBadge" class="badge">Rôle</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-section">
+                <div class="card">
+                    <span class="label-cap">Supervision des Sessions</span>
+                    <div id="activeSessions"></div>
+                </div>
+                <div class="card">
+                    <span class="label-cap">Maintenance</span>
+                    <button class="btn-main" style="background:#5856D6; margin-bottom:10px;" onclick="exportFullData()">📥 Export JSON Complet</button>
+                    <button class="btn-main" style="background:var(--danger);" onclick="wipeDatabase()">🚨 Réinitialisation d'Usine</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <button class="btn-main" style="background:var(--ios-secondary);" onclick="handleLogout()">Se déconnecter</button>
+            </div>
+            <p style="text-align:center; font-size:10px; color:gray; margin-top:20px;">NEXUS PRO v4.2.0 - 2026 Edition</p>
+        </div>
+    </main>
+
+    <nav id="bottomNav" style="display:none;">
+        <a href="#" class="nav-link active" onclick="navTo('dashboard', this, 'Accueil')">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>Accueil
+        </a>
+        <a href="#" class="nav-link" onclick="navTo('vault', this, 'Coffre')">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-7 2h5v2h-5V8zm0 4h5v2h-5v-2zm-5-2h2v2H8v-2zm0 4h2v2H8v-2z"/></svg>Coffre
+        </a>
+        <a href="#" class="nav-link" onclick="navTo('planning', this, 'Planning')">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7v-5z"/></svg>Planning
+        </a>
+        <a href="#" class="nav-link" onclick="navTo('tracking', this, 'Suivi')">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9z"/></svg>Suivi
+        </a>
+        <a href="#" class="nav-link" onclick="navTo('settings', this, 'Réglages')">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>Admin
+        </a>
+    </nav>
+
+    <div id="invoice-render">
+        <div style="display:flex; justify-content:space-between; border-bottom:3px solid #007AFF; padding-bottom:20px;">
+            <div><h1 style="font-size:40px; color:#007AFF;">NEXUS PRO</h1><p>Facture Officielle</p></div>
+            <div style="text-align:right;"><p id="inv-date"></p><h2 id="inv-ref"></h2></div>
+        </div>
+        <div style="margin:40px 0;">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead><tr style="background:#f2f2f2;"><th style="padding:15px; text-align:left;">Description</th><th style="padding:15px; text-align:right;">Montant</th></tr></thead>
+                <tbody><tr><td id="inv-desc" style="padding:15px; border-bottom:1px solid #eee;"></td><td id="inv-price" style="padding:15px; border-bottom:1px solid #eee; text-align:right;"></td></tr></tbody>
+            </table>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <div id="inv-qr"></div>
+            <div style="text-align:right;"><h3>TOTAL PAYÉ</h3><h1 id="inv-total" style="font-size:45px; color:#007AFF;"></h1></div>
+        </div>
+        <div style="margin-top:50px; font-size:12px; color:gray; border-top:1px solid #eee; padding-top:20px;">
+            <p>Opérateur: <span id="inv-seller"></span> | Transaction ID: <span id="inv-id"></span></p>
+            <p>Nexus Pro System - Document certifié numériquement.</p>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURATION & CORE ---
+        const fbConfig = {
+            apiKey: "AIzaSyA1c9URRCioVQ-zmXug57hBqTPF1J31F78",
+            authDomain: "nexus-a3523.firebaseapp.com",
+            databaseURL: "https://nexus-a3523-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "nexus-a3523",
+            storageBucket: "nexus-a3523.appspot.com",
+            messagingSenderId: "592879868109",
+            appId: "1:592879868109:web:2987d537c66839425ff184"
+        };
+        firebase.initializeApp(fbConfig);
+        const rtdb = firebase.database();
+        const store = firebase.storage();
+
+        const STAFF = {
+            "2906J75": { id: "u_admin", name: "Toi (Admin)", role: "ADMIN", color: "#FF9500" },
+            "PoteDID": { id: "u_chris", name: "Christopher", role: "USER", color: "#007AFF" },
+            "Imp3D": { id: "u_geatan", name: "Gaëtan", role: "USER", color: "#5856D6" }
+        };
+
+        let user = null, isAdmin = false;
+        let localDB = { stock: {}, history: {}, vault: {}, planning: {}, stats: {} };
+        let salesChart = null;
+
+        // --- 2. AUTHENTIFICATION ---
+        function handleLogin() {
+            const val = document.getElementById('passInput').value;
+            const found = STAFF[val];
+            if(found) {
+                user = found; isAdmin = (found.role === "ADMIN");
+                localStorage.setItem('nexus_session_v4', JSON.stringify(found));
+                document.getElementById('loginOverlay').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loginOverlay').style.display = 'none';
+                    initApp();
+                }, 300);
+            } else {
+                const err = document.getElementById('errorMsg');
+                err.style.display = 'block';
+                document.getElementById('passInput').value = "";
+            }
+        }
+
+        function initApp() {
+            document.getElementById('mainApp').style.display = 'block';
+            document.getElementById('bottomNav').style.display = 'flex';
+            document.getElementById('userNameLarge').innerText = user.name;
+            document.getElementById('userAvatar').innerText = user.name[0];
+            document.getElementById('userAvatar').style.background = user.color;
+            document.getElementById('subHeaderDate').innerText = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+            
+            const badge = document.getElementById('userRoleBadge');
+            badge.innerText = user.role;
+            badge.className = 'badge ' + (isAdmin ? 'badge-admin' : 'badge-user');
+
+            if(isAdmin) document.querySelectorAll('.admin-section').forEach(s => s.style.display = 'block');
+
+            // Logs d'accès
+            rtdb.ref('logs/access').push({ user: user.name, time: Date.now(), type: 'LOGIN' });
+
+            // Sync Database
+            rtdb.ref('/').on('value', (snap) => {
+                const data = snap.val();
+                if(data) {
+                    localDB = data;
+                    refreshUI();
+                }
+            });
+
+            // Heartbeat session
+            setInterval(() => {
+                rtdb.ref(`sessions/${user.id}`).set({ name: user.name, active: true, lastSeen: Date.now(), role: user.role });
+            }, 10000);
+        }
+
+        // --- 3. LOGIQUE MÉTIER (STOCK & VENTES) ---
+        async function addToInventory() {
+            const n = document.getElementById('pName').value, 
+                  p = parseFloat(document.getElementById('pPrice').value),
+                  q = parseInt(document.getElementById('pQty').value);
+            if(!n || isNaN(p)) return alert("Données invalides");
+
+            await rtdb.ref('stock').push({ 
+                name: n, price: p, qty: q, addedBy: user.name, date: Date.now() 
+            });
+            document.getElementById('pName').value = "";
+            document.getElementById('pPrice').value = "";
+        }
+
+        async function processSale(key, item) {
+            if(!confirm(`Confirmer la vente de : ${item.name} (${item.price}€) ?`)) return;
+
+            const tid = rtdb.ref('history').push().key;
+            const now = new Date();
+            const saleData = {
+                id: tid,
+                name: item.name,
+                price: item.price,
+                seller: user.name,
+                timestamp: Date.now(),
+                dateStr: now.toLocaleString('fr-FR')
+            };
+
+            await rtdb.ref(`history/${tid}`).set(saleData);
+            await rtdb.ref('totalSales').transaction(current => (current || 0) + item.price);
+            
+            if(item.qty > 1) {
+                await rtdb.ref(`stock/${key}/qty`).set(item.qty - 1);
+            } else {
+                await rtdb.ref(`stock/${key}`).remove();
+            }
+
+            // Auto-WhatsApp & QR
+            openQR(item.name, `NX-${tid.substring(1,7).toUpperCase()}`, tid);
+            sendWA(saleData);
+        }
+
+        function sendWA(sale) {
+            const ref = `NX-${sale.id.substring(1,7).toUpperCase()}`;
+            const msg = `*NEXUS PRO - FACTURE*\n--------------------------\nRef: ${ref}\nArticle: ${sale.name}\nTotal: ${sale.price.toFixed(2)}€\nVendeur: ${sale.seller}\nDate: ${sale.dateStr}\n--------------------------\nMerci de votre confiance !`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        // --- 4. PLANNING & ABSENCES ---
+        async function savePlanning() {
+            const d = document.getElementById('planDate').value,
+                  s = document.getElementById('planStart').value,
+                  e = document.getElementById('planEnd').value;
+            if(!d) return alert("Date requise");
+
+            await rtdb.ref('planning').push({
+                uid: user.id, name: user.name, date: d, start: s, end: e, status: 'VALIDÉ'
+            });
+            alert("Planning enregistré");
+        }
+
+        async function markAbsent(key, res) {
+            if(!confirm(`Signaler l'absence de ${res.name} ? Une pénalité de 2.00€ sera déduite.`)) return;
+            
+            await rtdb.ref('totalSales').transaction(curr => (curr || 0) - 2.0);
+            await rtdb.ref('history').push({
+                name: `PÉNALITÉ ABSENCE (${res.name})`,
+                price: -2.0,
+                seller: "SYSTEM",
+                timestamp: Date.now(),
+                dateStr: new Date().toLocaleString()
+            });
+            await rtdb.ref(`planning/${key}/status`).set('ABSENT/PÉNALISÉ');
+        }
+
+        // --- 5. COFFRE-FORT (VAULT) ---
+        async function uploadToVault(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const label = prompt("Nom du document :", file.name);
+            const ref = store.ref(`nexus_vault/${Date.now()}_${file.name}`);
+            
+            document.body.style.opacity = "0.5";
+            await ref.put(file);
+            const url = await ref.getDownloadURL();
+            
+            await rtdb.ref('vault').push({
+                title: label || file.name,
+                url: url,
+                type: file.type,
+                owner: user.name,
+                date: new Date().toLocaleDateString()
+            });
+            document.body.style.opacity = "1";
+            input.value = "";
+        }
+
+        // --- 6. RENDU UI (REFRESH) ---
+        function refreshUI() {
+            // Stats
+            const total = localDB.totalSales || 0;
+            document.getElementById('totalSalesDisp').innerText = total.toFixed(2) + " €";
+            const hKeys = Object.keys(localDB.history || {});
+            document.getElementById('salesCount').innerText = `${hKeys.length} transactions`;
+            document.getElementById('lastUpdate').innerText = `MàJ: ${new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}`;
+
+            // Stock
+            let sHTML = "";
+            const stock = localDB.stock || {};
+            Object.keys(stock).forEach(k => {
+                const i = stock[k];
+                sHTML += `<div class="ios-item">
+                    <div><b>${i.name}</b><br><small style="color:var(--ios-secondary)">Stock: ${i.qty} | ${i.price.toFixed(2)}€</small></div>
+                    <button class="btn-sub btn-wa" onclick="processSale('${k}', ${JSON.stringify(i).replace(/"/g, '&quot;')})">VENDRE</button>
+                </div>`;
+            });
+            document.getElementById('stockList').innerHTML = sHTML || "<p style='text-align:center; padding:20px; color:gray;'>Aucun article en stock.</p>";
+
+            // Vault
+            renderVaultList();
+
+            // Planning
+            let pHTML = "";
+            const plans = localDB.planning || {};
+            Object.keys(plans).reverse().forEach(k => {
+                const p = plans[k];
+                pHTML += `<div class="ios-item">
+                    <div><b>${p.name}</b><br><small>${p.date} (${p.start}-${p.end})</small></div>
+                    ${(isAdmin && p.status !== 'ABSENT/PÉNALISÉ') ? `<button class="btn-sub btn-danger" onclick="markAbsent('${k}', ${JSON.stringify(p).replace(/"/g, '&quot;')})">ABSENT</button>` : `<span style="font-size:11px; font-weight:700; color:var(--ios-blue)">${p.status}</span>`}
+                </div>`;
+            });
+            document.getElementById('planningList').innerHTML = pHTML;
+
+            // Historique
+            renderHistoryList();
+
+            // Sessions
+            if(isAdmin) {
+                let sessHTML = "";
+                const sessions = localDB.sessions || {};
+                Object.keys(sessions).forEach(id => {
+                    const s = sessions[id];
+                    const isOnline = (Date.now() - s.lastSeen) < 30000;
+                    sessHTML += `<div class="ios-item" style="font-size:13px;">
+                        <span>${isOnline ? '🟢' : '🔴'} ${s.name} <small>(${s.role})</small></span>
+                        <button class="btn-sub" style="background:#eee" onclick="kickUser('${id}')">KICK</button>
+                    </div>`;
+                });
+                document.getElementById('activeSessions').innerHTML = sessHTML;
+            }
+
+            updateChart();
+        }
+
+        // --- 7. FONCTIONS AUXILIAIRES ---
+        function navTo(id, el, title) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            el.classList.add('active');
+            document.getElementById('headerTitle').innerText = title;
+            window.scrollTo(0,0);
+        }
+
+        function openQR(title, subtitle, id) {
+            document.getElementById('qr-title').innerText = title;
+            document.getElementById('qr-subtitle').innerText = subtitle;
+            document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${id}`;
+            document.getElementById('qr-modal').style.display = 'flex';
+        }
+        function closeQR() { document.getElementById('qr-modal').style.display = 'none'; }
+
+        function updateChart() {
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            if(salesChart) salesChart.destroy();
+            
+            // Logique simplifiée pour l'exemple : récupère les 7 dernières ventes
+            const hist = Object.values(localDB.history || {}).slice(-7);
+            salesChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: hist.map(h => h.dateStr.split(' ')[0]),
+                    datasets: [{
+                        label: 'Ventes (€)',
+                        data: hist.map(h => h.price),
+                        borderColor: '#007AFF',
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: 'rgba(0,122,255,0.1)'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        async function handleLogout() {
+            if(confirm("Déconnexion ?")) {
+                localStorage.removeItem('nexus_session_v4');
+                location.reload();
+            }
+        }
+
+        function kickUser(id) { rtdb.ref(`sessions/${id}`).remove(); alert("Utilisateur expulsé"); }
+
+        function renderVaultList() {
+            let vHTML = "";
+            const docs = localDB.vault || {};
+            const search = document.getElementById('vaultSearch').value.toLowerCase();
+            Object.keys(docs).reverse().forEach(k => {
+                const d = docs[k];
+                if(d.title.toLowerCase().includes(search)) {
+                    vHTML += `<div class="card" style="text-align:center; padding:10px;">
+                        <div style="font-size:30px; margin-bottom:5px;">${d.type.includes('pdf') ? '📄' : '🖼️'}</div>
+                        <div style="font-size:11px; font-weight:700; height:30px; overflow:hidden;">${d.title}</div>
+                        <button class="btn-sub" style="width:100%; margin-top:10px; background:#F2F2F7; color:black;" onclick="window.open('${d.url}')">OUVRIR</button>
+                    </div>`;
+                }
+            });
+            document.getElementById('vaultGrid').innerHTML = vHTML;
+        }
+
+        function renderHistoryList() {
+            let hHTML = "";
+            const history = localDB.history || {};
+            const search = document.getElementById('histSearch').value.toLowerCase();
+            Object.keys(history).reverse().forEach(k => {
+                const h = history[k];
+                if(h.name.toLowerCase().includes(search) || h.seller.toLowerCase().includes(search)) {
+                    hHTML += `<div class="ios-item">
+                        <div><small>${h.dateStr}</small><br><b>${h.name}</b><br><small>Par: ${h.seller}</small></div>
+                        <div style="text-align:right">
+                            <b style="color:${h.price > 0 ? 'var(--success)' : 'var(--danger)'}">${h.price.toFixed(2)}€</b><br>
+                            <button class="btn-sub" style="font-size:9px; margin-top:5px;" onclick="generatePDF('${k}')">PDF</button>
+                        </div>
+                    </div>`;
+                }
+            });
+            document.getElementById('historyList').innerHTML = hHTML;
+        }
+
+        async function generatePDF(id) {
+            const h = localDB.history[id];
+            document.getElementById('inv-date').innerText = h.dateStr;
+            document.getElementById('inv-ref').innerText = `REF: NX-${id.substring(1,7).toUpperCase()}`;
+            document.getElementById('inv-desc').innerText = h.name;
+            document.getElementById('inv-price').innerText = h.price.toFixed(2) + " €";
+            document.getElementById('inv-total').innerText = h.price.toFixed(2) + " €";
+            document.getElementById('inv-seller').innerText = h.seller;
+            document.getElementById('inv-id').innerText = id;
+            document.getElementById('inv-qr').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${id}">`;
+            
+            const element = document.getElementById('invoice-render');
+            html2pdf().from(element).save(`Facture_${h.name}_${id.substring(1,5)}.pdf`);
+        }
+
+        // Auto-login check
+        window.onload = () => {
+            const saved = localStorage.getItem('nexus_session_v4');
+            if(saved) {
+                user = JSON.parse(saved);
+                isAdmin = (user.role === "ADMIN");
+                initApp();
+            }
+        };
+    </script>
+</body>
+</html>
